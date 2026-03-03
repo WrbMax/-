@@ -234,6 +234,37 @@ class Scanner:
         elif short_cond_price and short_cond_macd and short_cond_vol:
             direction = "SHORT"
         else:
+            # 方案A：满足MA20穿越条件但其他条件不满足时，记录到数据库供参考
+            near_cond_direction = None
+            near_cond_reasons = []
+            if long_cond_price:
+                near_cond_direction = "LONG"
+                if not long_cond_macd:
+                    parts = []
+                    if not (dif > dea): parts.append(f"DIF({dif:.4f})<DEA({dea:.4f})")
+                    elif not (macd_hist > 0): parts.append(f"MACD柱({macd_hist:.4f})<=0")
+                    elif not (macd_hist > macd_hist_prev): parts.append(f"MACD柱未递增({macd_hist:.4f}<={macd_hist_prev:.4f})")
+                    elif not near_zero_axis: parts.append(f"MACD未在零轴附近(DIF/close={abs(dif/close)*100:.1f}%)")
+                    near_cond_reasons.append("MACD不满足: " + "; ".join(parts))
+                if not long_cond_vol:
+                    near_cond_reasons.append(f"成交量不足(ratio={volume_ratio:.2f}<{config.entry.volume_threshold}x)")
+            elif short_cond_price:
+                near_cond_direction = "SHORT"
+                if not short_cond_macd:
+                    parts = []
+                    if not (dif < dea): parts.append(f"DIF({dif:.4f})>DEA({dea:.4f})")
+                    elif not (macd_hist < 0): parts.append(f"MACD柱({macd_hist:.4f})>=0")
+                    elif not (macd_hist < macd_hist_prev): parts.append(f"MACD柱未递增({macd_hist:.4f}>={macd_hist_prev:.4f})")
+                    elif not near_zero_axis: parts.append(f"MACD未在零轴附近(DIF/close={abs(dif/close)*100:.1f}%)")
+                    near_cond_reasons.append("MACD不满足: " + "; ".join(parts))
+                if not short_cond_vol:
+                    near_cond_reasons.append(f"成交量不足(ratio={volume_ratio:.2f}<{config.entry.volume_threshold}x)")
+            if near_cond_direction and near_cond_reasons:
+                reject_reason = " | ".join(near_cond_reasons)
+                signal_data = self._build_signal(symbol, period, near_cond_direction, "rejected",
+                                                  close, ma20, macd_hist, volume_ratio, atr_val, rsi_val,
+                                                  reject_reason, candle_open_time=candle_open_time_str)
+                create_signal(signal_data)
             return None  # No signal - not all 3 conditions met
 
         # ---- Filters ----

@@ -32,11 +32,17 @@ logger = logging.getLogger("dtrs.main")
 
 
 scheduler = DTRSScheduler()
+_scheduler_started = False
 
 
 @app.on_event("startup")
 async def startup_event():
     """Start the scheduler when FastAPI starts"""
+    global _scheduler_started
+    if _scheduler_started:
+        logger.warning("Scheduler already started, skipping duplicate startup")
+        return
+    _scheduler_started = True
     logger.info("DTRS Trading Engine starting...")
     init_db()
     # Start scheduler in background
