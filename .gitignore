@@ -1,0 +1,43 @@
+# 敏感配置（包含 API Key）
+runtime.env
+.env
+*.env
+
+# 数据库文件
+*.db
+*.db-journal
+*.sqlite
+
+# 日志文件
+*.log
+logs/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 备份文件
+*.bak
+*.bak_*
+
+# 临时调试脚本
+check_*.py
+fix_*.py
+close_all*.py
+engine_full_fix.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# 数据目录（运行时生成）
+data/*.db
+data/*.log

@@ -1,0 +1,37 @@
+{
+  "binance": {
+    "api_key": "Gu1hIgVwqCmXrZBAQFBNmE8nOZq8ZFWdvmoKhYzPV1KEBZUEDP9vBKsolYCawzGI",
+    "api_secret": "y7oUeaXglgQTYP9DN1jYC1ARzekgLUi5At7MVFXItdjrboiMwr8iYPdf46uqug9T",
+    "testnet": false
+  },
+  "scan": {
+    "scan_scope": 500,
+    "exclude_list": [
+      "LUNAUSDT",
+      "USTCUSDT",
+      "CELOUSDT",
+      "SATSUSDT"
+    ],
+    "auto_blacklist_enabled": false
+  },
+  "entry": {
+    "volume_threshold": 1.5,
+    "rsi_enabled": false,
+    "atr_filter_enabled": false
+  },
+  "margin": {
+    "leverage": 20,
+    "margin_1h": 0.015,
+    "margin_4h": 0.03,
+    "margin_1d": 0.08,
+    "max_open_positions": 30,
+    "margin_warning_threshold": 0.45,
+    "margin_circuit_break_threshold": 0.6
+  },
+  "exit": {
+    "atr_stop_multiplier": 1.5,
+    "tp1_close_ratio": 0.4,
+    "tp2_close_ratio": 0.3,
+    "ema_check_interval_minutes": 15
+  }
+}
