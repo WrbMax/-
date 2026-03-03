@@ -175,21 +175,22 @@ class Scanner:
         # 核心逻辑：上一根K线是「第一根」完全穿越MA20的K线
         #
         # 做多新信号条件：
-        #   1. 上上根K线整根在MA20下方（high_prev2 <= ma20_prev2）—— 还没穿越，不能是穿越中
-        #   2. 上一根K线整根站上MA20（low_prev > ma20_prev）—— 第一根穿越
+        #   1. 上上根「未整根站上MA20」（可以是穿越中或整根在MA20下方）
+        #      即：low_prev2 <= ma20_prev2（上上根最低价 <= MA20，说明还没完全站上）
+        #   2. 上一根K线整根站上MA20（low_prev > ma20_prev）—— 第一根完全穿越
         #   3. 当前K线收盘 > 当前MA20 —— 确认延续
         #
         # 做空新信号条件：
-        #   1. 上上根K线整根在MA20上方（low_prev2 >= ma20_prev2）—— 还没穿越，不能是穿越中
-        #   2. 上一根K线整根站下MA20（high_prev < ma20_prev）—— 第一根穿越
+        #   1. 上上根「未整根站下MA20」（可以是穿越中或整根在MA20上方）
+        #      即：high_prev2 >= ma20_prev2（上上根最高价 >= MA20，说明还没完全站下）
+        #   2. 上一根K线整根站下MA20（high_prev < ma20_prev）—— 第一根完全穿越
         #   3. 当前K线收盘 < 当前MA20 —— 确认延续
         #
-        # 关键：上上根必须是「整根」在另一侧，如果上上根是穿越中（影线碰到MA20）也不算新信号
-        # 因为那说明已经在MA20附近震荡多根了，不是新鲜的第一次穿越
-        prev2_fully_below_ma20 = (high_prev2 <= ma20_prev2)   # 上上根整根在MA20下方（做多前提）
-        prev2_fully_above_ma20 = (low_prev2  >= ma20_prev2)   # 上上根整根在MA20上方（做空前提）
-        long_cond_price  = prev2_fully_below_ma20 and (low_prev  > ma20_prev) and (close > ma20)
-        short_cond_price = prev2_fully_above_ma20 and (high_prev < ma20_prev) and (close < ma20)
+        # 关键：上上根「穿越中」也算满足条件，但上上根如果已经整根站到和上一根同一侧则不算新信号
+        prev2_not_fully_above_ma20 = (low_prev2  <= ma20_prev2)  # 上上根未整根站上MA20（做多前提）
+        prev2_not_fully_below_ma20 = (high_prev2 >= ma20_prev2)  # 上上根未整根站下MA20（做空前提）
+        long_cond_price  = prev2_not_fully_above_ma20 and (low_prev  > ma20_prev) and (close > ma20)
+        short_cond_price = prev2_not_fully_below_ma20 and (high_prev < ma20_prev) and (close < ma20)
 
         # === CONDITION 2: Momentum (MACD) ===
         # LONG requires ALL of:
