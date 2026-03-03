@@ -122,19 +122,20 @@ class Scanner:
 
         indicators = calculate_all_indicators(klines)
 
-        # Get latest values (second to last for confirmed candle)
-        idx = -2  # Use confirmed (closed) candle
-        close = indicators["close"][idx]
-        close_prev = indicators["close"][idx - 1]   # Previous candle close
-        high_prev = indicators["high"][idx - 1]     # Previous candle high (for full-body MA20 check)
-        low_prev  = indicators["low"][idx - 1]      # Previous candle low (for full-body MA20 check)
-        ma20 = indicators["ma20"][idx]
-        ma20_prev = indicators["ma20"][idx - 1]     # Previous candle MA20
+        # 当前正在运行的K线作为信号K线（idx=-1）
+        # 上一根（最新已收盘）= idx=-2，上上根 = idx=-3
+        idx = -1  # 当前K线（正在运行，用实时收盘价确认方向）
+        close = indicators["close"][idx]             # 当前K线实时收盘价
+        close_prev = indicators["close"][idx - 1]   # 上一根收盘价
+        high_prev = indicators["high"][idx - 1]     # 上一根最高价（MA20全身确认）
+        low_prev  = indicators["low"][idx - 1]      # 上一根最低价（MA20全身确认）
+        ma20 = indicators["ma20"][idx]               # 当前K线MA20
+        ma20_prev = indicators["ma20"][idx - 1]     # 上一根MA20
         # 上上根K线数据（用于验证MA20穿越时效性）
-        high_prev2 = indicators["high"][idx - 2]    # 上上根K线最高价
-        low_prev2  = indicators["low"][idx - 2]     # 上上根K线最低价
-        close_prev2 = indicators["close"][idx - 2]  # 上上根K线收盘价
-        ma20_prev2 = indicators["ma20"][idx - 2]    # 上上根K线MA20
+        high_prev2 = indicators["high"][idx - 2]    # 上上根最高价
+        low_prev2  = indicators["low"][idx - 2]     # 上上根最低价
+        close_prev2 = indicators["close"][idx - 2]  # 上上根收盘价
+        ma20_prev2 = indicators["ma20"][idx - 2]    # 上上根MA20
         ema20 = indicators["ema20"][idx]
         # MACD: DIF, DEA, Histogram (current + previous)
         dif = indicators["dif"][idx]
@@ -146,43 +147,10 @@ class Scanner:
         volume = indicators["volume"][idx]
         vol_avg = indicators["vol_avg"][idx]
 
-        # === CANDLE FRESHNESS CHECK: Reject signals from stale candles ===
-        # The confirmed candle (idx=-2) must be the MOST RECENTLY closed candle.
-        # Rule: candle_close_time = candle_open_time + period_seconds
-        # The candle is fresh ONLY IF: (now - candle_close_time) <= 1 period
-        # i.e. the candle closed within the last 1 period duration.
-        # Example (1h): candle opened at 13:00, closed at 14:00.
-        #   Scan at 14:00:05 -> age_since_close = 5s -> FRESH (ok)
-        #   Scan at 15:00:05 -> age_since_close = 3605s > 3600s -> STALE (reject)
-        try:
-            from datetime import datetime, timezone as tz
-            candle_open_ms = int(indicators["open_time"][idx])
-            period_seconds_map = {"1h": 3600, "4h": 14400, "1d": 86400}
-            period_seconds = period_seconds_map.get(period, 3600)
-            # Calculate candle close time (open_time + period)
-            candle_close_ms = candle_open_ms + (period_seconds * 1000)
-            candle_close_dt = datetime.fromtimestamp(candle_close_ms / 1000, tz=tz.utc)
-            now_utc = datetime.now(tz=tz.utc)
-            # How many seconds have passed since this candle CLOSED?
-            age_since_close = (now_utc - candle_close_dt).total_seconds()
-            # Allow up to 1 full period after close (generous buffer for execution)
-            # If more than 1 period has passed since close, the signal is stale
-            max_age_since_close = period_seconds  # exactly 1 period
-            if age_since_close > max_age_since_close:
-                candle_open_dt = datetime.fromtimestamp(candle_open_ms / 1000, tz=tz.utc)
-                reason = (f"K线信号已过期: 信号K线收盘于 {candle_close_dt.strftime('%H:%M')} UTC, "
-                          f"距收盘已过 {age_since_close/3600:.1f}h, 超过 {max_age_since_close/3600:.1f}h 限制 (仅允许最新一根K线)")
-                logger.warning(f"{symbol} {period}: STALE signal rejected (closed {age_since_close:.0f}s ago > max {max_age_since_close:.0f}s)")
-                add_log("warning", "SCANNER", f"{symbol} {period}: {reason}")
-                return None  # Silently drop stale signals - do NOT create DB record to avoid clutter
-        except Exception as e:
-            logger.warning(f"{symbol} {period}: Candle freshness check failed: {e}, skipping signal")
-            return None  # Cannot verify candle freshness, skip to avoid stale signals
-
-        # 提取K线开盘时间（用于信号去重）
+        # 提取上一根K线开盘时间（用于信号去重：同一根上一根K线只产生一次信号）
         candle_open_time_str = None
         try:
-            candle_open_time_str = str(int(indicators["open_time"][idx]))
+            candle_open_time_str = str(int(indicators["open_time"][idx - 1]))
         except Exception:
             pass
 
