@@ -204,19 +204,24 @@ class Scanner:
         direction = None
 
         # === CONDITION 1: Price Position (MA20 Full-Body Confirmation + 穿越时效性) ===
-        # LONG: 上一根K线整根（含影线）完全站上MA20（low_prev > ma20_prev）
-        #       AND 上上根K线还未完全站上MA20（即上一根是第一根穿越的K线，是新信号）
-        #       AND 当前K线收盘 > 当前MA20（确认延续）
-        # SHORT: 上一根K线整根（含影线）完全站下MA20（high_prev < ma20_prev）
-        #        AND 上上根K线还未完全站下MA20（即上一根是第一根穿越的K线，是新信号）
-        #        AND 当前K线收盘 < 当前MA20（确认延续）
+        # 核心逻辑：上一根K线是「第一根」完全穿越MA20的K线
         #
-        # 上上根K线「未完全站上MA20」的判断：上上根收盘 <= 上上根MA20 或 上上根最低价 <= 上上根MA20
-        # 上上根K线「未完全站下MA20」的判断：上上根收盘 >= 上上根MA20 或 上上根最高价 >= 上上根MA20
-        prev2_not_above_ma20 = (close_prev2 <= ma20_prev2) or (low_prev2 <= ma20_prev2)
-        prev2_not_below_ma20 = (close_prev2 >= ma20_prev2) or (high_prev2 >= ma20_prev2)
-        long_cond_price  = (low_prev  > ma20_prev) and prev2_not_above_ma20 and (close > ma20)
-        short_cond_price = (high_prev < ma20_prev) and prev2_not_below_ma20 and (close < ma20)
+        # 做多新信号条件：
+        #   1. 上上根K线整根在MA20下方（high_prev2 <= ma20_prev2）—— 还没穿越，不能是穿越中
+        #   2. 上一根K线整根站上MA20（low_prev > ma20_prev）—— 第一根穿越
+        #   3. 当前K线收盘 > 当前MA20 —— 确认延续
+        #
+        # 做空新信号条件：
+        #   1. 上上根K线整根在MA20上方（low_prev2 >= ma20_prev2）—— 还没穿越，不能是穿越中
+        #   2. 上一根K线整根站下MA20（high_prev < ma20_prev）—— 第一根穿越
+        #   3. 当前K线收盘 < 当前MA20 —— 确认延续
+        #
+        # 关键：上上根必须是「整根」在另一侧，如果上上根是穿越中（影线碰到MA20）也不算新信号
+        # 因为那说明已经在MA20附近震荡多根了，不是新鲜的第一次穿越
+        prev2_fully_below_ma20 = (high_prev2 <= ma20_prev2)   # 上上根整根在MA20下方（做多前提）
+        prev2_fully_above_ma20 = (low_prev2  >= ma20_prev2)   # 上上根整根在MA20上方（做空前提）
+        long_cond_price  = prev2_fully_below_ma20 and (low_prev  > ma20_prev) and (close > ma20)
+        short_cond_price = prev2_fully_above_ma20 and (high_prev < ma20_prev) and (close < ma20)
 
         # === CONDITION 2: Momentum (MACD) ===
         # LONG requires ALL of:
