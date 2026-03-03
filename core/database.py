@@ -60,7 +60,7 @@ def init_db():
         symbol TEXT NOT NULL,
         period TEXT NOT NULL,
         direction TEXT NOT NULL,
-        status TEXT NOT NULL CHECK(status IN ('executed', 'filtered', 'conflict', 'circuit_break')),
+        status TEXT NOT NULL CHECK(status IN ('executed', 'filtered', 'conflict', 'circuit_break', 'rejected')),
         price REAL NOT NULL,
         ma20 REAL,
         macd_hist REAL,
