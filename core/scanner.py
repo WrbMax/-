@@ -179,6 +179,13 @@ class Scanner:
             logger.warning(f"{symbol} {period}: Candle freshness check failed: {e}, skipping signal")
             return None  # Cannot verify candle freshness, skip to avoid stale signals
 
+        # 提取K线开盘时间（用于信号去重）
+        candle_open_time_str = None
+        try:
+            candle_open_time_str = str(int(indicators["open_time"][idx]))
+        except Exception:
+            pass
+
         # Check for NaN (including DIF/DEA needed for MACD crossover check)
         if any(np.isnan(v) for v in [ma20, dif, dea, macd_hist, macd_hist_prev, rsi_val, atr_val, vol_avg] if v is not None):
             return None
@@ -270,7 +277,8 @@ class Scanner:
 
             if reason:
                 signal_data = self._build_signal(symbol, period, direction, "filtered",
-                                                  close, ma20, macd_hist, volume_ratio, atr_val, rsi_val, reason)
+                                                  close, ma20, macd_hist, volume_ratio, atr_val, rsi_val, reason,
+                                                  candle_open_time=candle_open_time_str)
                 create_signal(signal_data)
                 return signal_data
 
@@ -280,7 +288,8 @@ class Scanner:
             if atr_val < atr_100 * config.entry.atr_min_ratio:
                 reason = f"波动率不足 (ATR {atr_val:.4f} < 均值{config.entry.atr_min_ratio}x)"
                 signal_data = self._build_signal(symbol, period, direction, "filtered",
-                                                  close, ma20, macd_hist, volume_ratio, atr_val, rsi_val, reason)
+                                                  close, ma20, macd_hist, volume_ratio, atr_val, rsi_val, reason,
+                                                  candle_open_time=candle_open_time_str)
                 create_signal(signal_data)
                 return signal_data
 
@@ -319,18 +328,19 @@ class Scanner:
                 reason = f"{symbol} {period} 已有持仓, 跳过"
 
         # === STALENESS CHECK: Verify current price hasn't moved too far from signal candle ===
-        # Uses per-period thresholds: 1h=1%, 4h=2%, 1d=3%
+        # 放宽偏离阈值：1h=3%, 4h=5%, 1d=8%（原来1%/2%/3%过于严格导致开单延迟）
+        # 扫描在K线收盘后数秒内执行，正常波动不应超过这个范围
         if status == "executed":
             try:
                 current_ticker = client.get_ticker_price(symbol)
                 current_price = float(current_ticker.get("price", close))
                 price_deviation = abs(current_price - close) / close * 100
                 deviation_map = {
-                    "1h": getattr(config.entry, "max_price_deviation_pct_1h", 1.0),
-                    "4h": getattr(config.entry, "max_price_deviation_pct_4h", 2.0),
-                    "1d": getattr(config.entry, "max_price_deviation_pct_1d", 3.0),
+                    "1h": getattr(config.entry, "max_price_deviation_pct_1h", 3.0),
+                    "4h": getattr(config.entry, "max_price_deviation_pct_4h", 5.0),
+                    "1d": getattr(config.entry, "max_price_deviation_pct_1d", 8.0),
                 }
-                max_deviation = deviation_map.get(period, 1.5)
+                max_deviation = deviation_map.get(period, 3.0)
                 if price_deviation > max_deviation:
                     status = "filtered"
                     reason = f"价格偏离信号点 {price_deviation:.2f}% > {max_deviation}%, 入场时机已过"
@@ -340,7 +350,8 @@ class Scanner:
                 logger.warning(f"Failed to check current price for {symbol}: {e}")
 
         signal_data = self._build_signal(symbol, period, direction, status,
-                                          close, ma20, macd_hist, volume_ratio, atr_val, rsi_val, reason)
+                                          close, ma20, macd_hist, volume_ratio, atr_val, rsi_val, reason,
+                                          candle_open_time=candle_open_time_str)
         create_signal(signal_data)
 
         if status == "executed":
@@ -367,7 +378,8 @@ class Scanner:
         return None
 
     def _build_signal(self, symbol, period, direction, status, price, ma20,
-                       macd_hist, volume_ratio, atr_val, rsi_val, reason) -> Dict:
+                       macd_hist, volume_ratio, atr_val, rsi_val, reason,
+                       candle_open_time=None) -> Dict:
         return {
             "symbol": symbol,
             "period": period,
@@ -380,4 +392,5 @@ class Scanner:
             "atr": atr_val,
             "rsi": rsi_val,
             "reason": reason,
+            "candle_open_time": candle_open_time,
         }

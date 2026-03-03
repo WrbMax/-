@@ -68,8 +68,13 @@ def init_db():
         atr REAL,
         rsi REAL,
         reason TEXT,
+        candle_open_time TEXT,
         created_at TEXT DEFAULT (datetime('now'))
     );
+    -- 防止同一根K线重复生成信号（同标的+同周期+同方向+同根K线开盘时间）
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_signals_unique_candle
+        ON signals(symbol, period, direction, candle_open_time)
+        WHERE candle_open_time IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS trades (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,11 +189,12 @@ def close_position(pos_id: int, close_price: float, close_reason: str, realized_
 def create_signal(data: Dict[str, Any]) -> int:
     conn = get_db()
     cursor = conn.cursor()
+    # INSERT OR IGNORE: 如果同标的+同周期+同方向+同根K线已存在信号，则忽略插入（防止重复信号）
     cursor.execute("""
-        INSERT INTO signals (symbol, period, direction, status, price, ma20, macd_hist,
-            volume_ratio, atr, rsi, reason)
+        INSERT OR IGNORE INTO signals (symbol, period, direction, status, price, ma20, macd_hist,
+            volume_ratio, atr, rsi, reason, candle_open_time)
         VALUES (:symbol, :period, :direction, :status, :price, :ma20, :macd_hist,
-            :volume_ratio, :atr, :rsi, :reason)
+            :volume_ratio, :atr, :rsi, :reason, :candle_open_time)
     """, data)
     sig_id = cursor.lastrowid
     conn.commit()
