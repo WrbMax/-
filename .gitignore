@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.bak
+*.bak2
+*.bak3
+*.bak_*
+*.bak.*
+logs/
+data/*.db
+data/config.json
+runtime.env
+check_*.py
+close_all*.py
+fix_*.py
+engine_full_fix.py
