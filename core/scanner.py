@@ -155,7 +155,8 @@ class Scanner:
             pass
 
         # Check for NaN (including DIF/DEA needed for MACD crossover check)
-        if any(np.isnan(v) for v in [ma20, dif, dea, macd_hist, macd_hist_prev, rsi_val, atr_val, vol_avg] if v is not None):
+        # 必须检查上一根和上上根的MA20，否则历史数据不足时NaN会导致误判
+        if any(np.isnan(v) for v in [ma20, ma20_prev, ma20_prev2, dif, dea, macd_hist, macd_hist_prev, rsi_val, atr_val, vol_avg] if v is not None):
             return None
 
         # Volume ratio
