@@ -310,6 +310,19 @@ class Executor:
                     f"{symbol} {direction} {pos['period']} 部分平仓 {close_ratio*100:.0f}% @ ${avg_price:.6f}, "
                     f"盈亏: ${pnl:.2f}, 原因: {reason}")
 
+            # === 撤销该标的所有残留挂单（止盈/止损单）===
+            # 平仓后立即撤销，避免挂单数量超过持仓或产生反向开仓
+            try:
+                open_orders = client.get_open_orders(symbol)
+                if open_orders:
+                    client.cancel_all_orders(symbol)
+                    add_log("info", "EXECUTOR",
+                            f"{symbol} 平仓后撤销 {len(open_orders)} 个残留挂单")
+                    logger.info(f"{symbol}: Cancelled {len(open_orders)} open orders after close")
+            except Exception as cancel_err:
+                logger.warning(f"{symbol}: Failed to cancel open orders after close: {cancel_err}")
+                add_log("warning", "EXECUTOR", f"{symbol} 撤销挂单失败（不影响平仓）: {cancel_err}")
+
             # Copy trade close
             try:
                 from core.copy_trader import copy_trader
