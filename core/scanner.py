@@ -224,9 +224,9 @@ class Scanner:
         )
 
         # === CONDITION 3: Volume Surge ===
-        # Current candle volume > 10-period average volume * threshold (default 1.5x)
-        long_cond_vol = volume_ratio >= config.entry.volume_threshold
-        short_cond_vol = volume_ratio >= config.entry.volume_threshold
+        # 成交量不作为开仓限制条件，仅记录供参考
+        long_cond_vol = True
+        short_cond_vol = True
 
         # === FINAL: ALL THREE conditions must be TRUE ===
         if long_cond_price and long_cond_macd and long_cond_vol:
@@ -246,8 +246,7 @@ class Scanner:
                     elif not (macd_hist > macd_hist_prev): parts.append(f"MACD柱未递增({macd_hist:.4f}<={macd_hist_prev:.4f})")
                     elif not near_zero_axis: parts.append(f"MACD未在零轴附近(DIF/close={abs(dif/close)*100:.1f}%)")
                     near_cond_reasons.append("MACD不满足: " + "; ".join(parts))
-                if not long_cond_vol:
-                    near_cond_reasons.append(f"成交量不足(ratio={volume_ratio:.2f}<{config.entry.volume_threshold}x)")
+                # 成交量不作为限制条件，不记录为rejected原因
             elif short_cond_price:
                 near_cond_direction = "SHORT"
                 if not short_cond_macd:
@@ -257,8 +256,7 @@ class Scanner:
                     elif not (macd_hist < macd_hist_prev): parts.append(f"MACD柱未递增({macd_hist:.4f}>={macd_hist_prev:.4f})")
                     elif not near_zero_axis: parts.append(f"MACD未在零轴附近(DIF/close={abs(dif/close)*100:.1f}%)")
                     near_cond_reasons.append("MACD不满足: " + "; ".join(parts))
-                if not short_cond_vol:
-                    near_cond_reasons.append(f"成交量不足(ratio={volume_ratio:.2f}<{config.entry.volume_threshold}x)")
+                # 成交量不作为限制条件，不记录为rejected原因
             if near_cond_direction and near_cond_reasons:
                 reject_reason = " | ".join(near_cond_reasons)
                 signal_data = self._build_signal(symbol, period, near_cond_direction, "rejected",

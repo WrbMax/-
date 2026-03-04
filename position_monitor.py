@@ -128,7 +128,7 @@ def _on_price_tick(symbol: str, mark_price: float):
                     _monitor._check_stop_loss(pos, mark_price)
                     continue  # Position closed, skip TP checks
 
-            # ── Emergency stop: loss > 40% of margin ────────────────────────
+            # ── Emergency stop: loss > 90% of margin ────────────────────────
             if entry_price > 0:
                 qty = pos.get('quantity', 0)
                 margin = entry_price * qty / pos.get('leverage', 20)
@@ -137,8 +137,8 @@ def _on_price_tick(symbol: str, mark_price: float):
                 else:
                     pnl = (entry_price - mark_price) * qty
                 pnl_pct = pnl / margin * 100 if margin > 0 else 0
-                if pnl_pct < -40:
-                    logger.error(f"EMERGENCY STOP: {symbol} loss {pnl_pct:.1f}% > -40%")
+                if pnl_pct < -90:
+                    logger.error(f"EMERGENCY STOP: {symbol} loss {pnl_pct:.1f}% > -90%")
                     from core.executor import Executor
                     Executor().close_position_full(
                         pos_id, mark_price,
